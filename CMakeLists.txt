@@ -16,6 +16,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(metrics_core INTERFACE)
 target_include_directories(metrics_core INTERFACE include)
 
+add_executable(metrics_server src/main.cpp src/tcp_server.cpp)
+target_link_libraries(metrics_server PRIVATE metrics_core pthread)
+
 option(BUILD_TESTS "Build unit tests" ON)
 if(BUILD_TESTS)
     include(FetchContent)
