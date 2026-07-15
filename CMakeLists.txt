@@ -34,4 +34,7 @@ if(BUILD_TESTS)
     add_executable(test_sliding_window tests/test_sliding_window.cpp)
     target_link_libraries(test_sliding_window PRIVATE metrics_core gtest_main)
     add_test(NAME test_sliding_window COMMAND test_sliding_window)
+
+    add_executable(benchmark_latency tests/benchmark_latency.cpp)
+    target_link_libraries(benchmark_latency PRIVATE metrics_core pthread)
 endif()
