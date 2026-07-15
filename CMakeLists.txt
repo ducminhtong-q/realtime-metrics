@@ -11,6 +11,7 @@ endif()
 add_compile_options(-Wall -Wextra)
 
 include_directories(include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(metrics_core INTERFACE)
 target_include_directories(metrics_core INTERFACE include)
