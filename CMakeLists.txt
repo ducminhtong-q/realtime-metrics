@@ -11,3 +11,23 @@ endif()
 add_compile_options(-Wall -Wextra)
 
 include_directories(include)
+
+add_library(metrics_core INTERFACE)
+target_include_directories(metrics_core INTERFACE include)
+
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    add_executable(test_sliding_window tests/test_sliding_window.cpp)
+    target_link_libraries(test_sliding_window PRIVATE metrics_core gtest_main)
+    add_test(NAME test_sliding_window COMMAND test_sliding_window)
+endif()
