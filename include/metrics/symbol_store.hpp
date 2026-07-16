@@ -3,24 +3,25 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "metrics/sliding_window.hpp"
 #include "metrics/types.hpp"
 
 namespace metrics {
 
-class SymbolStore {
-public:
-    explicit SymbolStore(int64_t window_ms = 60'000) : window_ms_(window_ms) {}
+    class SymbolStore {
+    public:
+        explicit SymbolStore(int64_t window_ms = 60'000) : window_ms_(window_ms) {}
 
-    void Push(const std::string& symbol, int64_t timestamp_ms, double price, double volume) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto it = windows_.find(symbol);
-        if (it == windows_.end()) {
-            it = windows_.emplace(symbol, SlidingWindow(window_ms_)).first;
+        void Push(const std::string& symbol, int64_t timestamp_ms, double price, double volume) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = windows_.find(symbol);
+            if (it == windows_.end()) {
+                it = windows_.emplace(symbol, SlidingWindow(window_ms_)).first;
+            }
+            it->second.Push({.timestamp_ms = timestamp_ms, .price = price, .volume = volume});
         }
-        it->second.Push({.timestamp_ms = timestamp_ms, .price = price, .volume = volume});
-    }
 
     Metrics Query(const std::string& symbol, int64_t now_ms) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -41,6 +42,25 @@ public:
         result.max_price = wm.max_price;
         result.min_price = wm.min_price;
         result.sample_count = wm.sample_count;
+        return result;
+    }
+
+    std::vector<Metrics> SnapshotAll(int64_t now_ms) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<Metrics> result;
+        for (auto& [symbol, window] : windows_) {
+            WindowMetrics wm = window.Query(now_ms);
+            if (!wm.has_data) continue;
+            Metrics m;
+            m.symbol = symbol;
+            m.has_data = true;
+            m.avg_price = wm.avg_price;
+            m.sum_volume = wm.sum_volume;
+            m.max_price = wm.max_price;
+            m.min_price = wm.min_price;
+            m.sample_count = wm.sample_count;
+            result.push_back(std::move(m));
+        }
         return result;
     }
 

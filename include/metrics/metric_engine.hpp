@@ -7,26 +7,30 @@
 
 namespace metrics {
 
-class MetricEngine {
-public:
-    explicit MetricEngine(int64_t window_ms = 60'000) : store_(window_ms) {}
+    class MetricEngine {
+    public:
+        explicit MetricEngine(int64_t window_ms = 60'000) : store_(window_ms) {}
 
-    void Push(const Tick& tick) {
-        store_.Push(tick.symbol, tick.timestamp * 1000, tick.price, tick.volume);
-    }
+        void Push(const Tick& tick) {
+            store_.Push(tick.symbol, tick.timestamp * 1000, tick.price, tick.volume);
+        }
 
-    Metrics Query(const std::string& symbol) {
-        return store_.Query(symbol, NowMillis());
-    }
+        Metrics Query(const std::string& symbol) {
+            return store_.Query(symbol, NowMillis());
+        }
 
-private:
-    static int64_t NowMillis() {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    }
+        std::vector<Metrics> SnapshotAll() {
+            return store_.SnapshotAll(NowMillis());
+        }
 
-    SymbolStore store_;
-};
+    private:
+        static int64_t NowMillis() {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch())
+                .count();
+        }
+
+        SymbolStore store_;
+    };
 
 }
