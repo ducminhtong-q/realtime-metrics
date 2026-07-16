@@ -38,6 +38,10 @@ if(BUILD_TESTS)
     target_link_libraries(test_sliding_window PRIVATE metrics_core gtest_main)
     add_test(NAME test_sliding_window COMMAND test_sliding_window)
 
+    add_executable(test_metric_engine tests/test_metric_engine.cpp)
+    target_link_libraries(test_metric_engine PRIVATE metrics_core gtest_main pthread)
+    add_test(NAME test_metric_engine COMMAND test_metric_engine)
+
     add_executable(benchmark_latency tests/benchmark_latency.cpp)
     target_link_libraries(benchmark_latency PRIVATE metrics_core pthread)
 endif()
