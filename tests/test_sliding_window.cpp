@@ -6,7 +6,7 @@ using metrics::DataPoint;
 using metrics::SlidingWindow;
 
 namespace {
-constexpr int64_t kMinute = 60'000;
+    constexpr int64_t kMinute = 60'000;
 }
 
 TEST(SlidingWindow, EmptyWindowHasNoData) {

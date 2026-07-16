@@ -23,51 +23,51 @@ namespace metrics {
             it->second.Push({.timestamp_ms = timestamp_ms, .price = price, .volume = volume});
         }
 
-    Metrics Query(const std::string& symbol, int64_t now_ms) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        Metrics Query(const std::string& symbol, int64_t now_ms) {
+            std::lock_guard<std::mutex> lock(mutex_);
 
-        Metrics result;
-        result.symbol = symbol;
+            Metrics result;
+            result.symbol = symbol;
 
-        auto it = windows_.find(symbol);
-        if (it == windows_.end()) {
-            result.has_data = false;
+            auto it = windows_.find(symbol);
+            if (it == windows_.end()) {
+                result.has_data = false;
+                return result;
+            }
+
+            WindowMetrics wm = it->second.Query(now_ms);
+            result.has_data = wm.has_data;
+            result.avg_price = wm.avg_price;
+            result.sum_volume = wm.sum_volume;
+            result.max_price = wm.max_price;
+            result.min_price = wm.min_price;
+            result.sample_count = wm.sample_count;
             return result;
         }
 
-        WindowMetrics wm = it->second.Query(now_ms);
-        result.has_data = wm.has_data;
-        result.avg_price = wm.avg_price;
-        result.sum_volume = wm.sum_volume;
-        result.max_price = wm.max_price;
-        result.min_price = wm.min_price;
-        result.sample_count = wm.sample_count;
-        return result;
-    }
-
-    std::vector<Metrics> SnapshotAll(int64_t now_ms) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<Metrics> result;
-        for (auto& [symbol, window] : windows_) {
-            WindowMetrics wm = window.Query(now_ms);
-            if (!wm.has_data) continue;
-            Metrics m;
-            m.symbol = symbol;
-            m.has_data = true;
-            m.avg_price = wm.avg_price;
-            m.sum_volume = wm.sum_volume;
-            m.max_price = wm.max_price;
-            m.min_price = wm.min_price;
-            m.sample_count = wm.sample_count;
-            result.push_back(std::move(m));
+        std::vector<Metrics> SnapshotAll(int64_t now_ms) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            std::vector<Metrics> result;
+            for (auto& [symbol, window] : windows_) {
+                WindowMetrics wm = window.Query(now_ms);
+                if (!wm.has_data) continue;
+                Metrics m;
+                m.symbol = symbol;
+                m.has_data = true;
+                m.avg_price = wm.avg_price;
+                m.sum_volume = wm.sum_volume;
+                m.max_price = wm.max_price;
+                m.min_price = wm.min_price;
+                m.sample_count = wm.sample_count;
+                result.push_back(std::move(m));
+            }
+            return result;
         }
-        return result;
-    }
 
-private:
-    int64_t window_ms_;
-    std::mutex mutex_;
-    std::unordered_map<std::string, SlidingWindow> windows_;
-};
+    private:
+        int64_t window_ms_;
+        std::mutex mutex_;
+        std::unordered_map<std::string, SlidingWindow> windows_;
+    };
 
 }

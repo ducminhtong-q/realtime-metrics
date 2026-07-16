@@ -19,79 +19,79 @@ using namespace std::chrono;
 
 namespace {
 
-int Connect(const std::string& host, int port) {
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return -1;
+    int Connect(const std::string& host, int port) {
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) return -1;
 
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(static_cast<uint16_t>(port));
-    inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(static_cast<uint16_t>(port));
+        inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
 
-    if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
-        close(fd);
-        return -1;
+        if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+            close(fd);
+            return -1;
+        }
+        return fd;
     }
-    return fd;
-}
 
-std::string SendAndRecv(int fd, const std::string& line) {
-    std::string msg = line + "\n";
-    send(fd, msg.data(), msg.size(), 0);
+    std::string SendAndRecv(int fd, const std::string& line) {
+        std::string msg = line + "\n";
+        send(fd, msg.data(), msg.size(), 0);
 
-    char buf[4096];
-    ssize_t n = recv(fd, buf, sizeof(buf), 0);
-    if (n <= 0) return "";
-    return std::string(buf, static_cast<size_t>(n));
-}
+        char buf[4096];
+        ssize_t n = recv(fd, buf, sizeof(buf), 0);
+        if (n <= 0) return "";
+        return std::string(buf, static_cast<size_t>(n));
+    }
 
-struct ClientStats {
-    int push_count = 0;
-    int query_count = 0;
-    std::vector<double> query_latencies_us;
-};
+    struct ClientStats {
+        int push_count = 0;
+        int query_count = 0;
+        std::vector<double> query_latencies_us;
+    };
 
 
-ClientStats RunClient(const std::string& host, int port, int requests_per_client, int client_id) {
-    ClientStats stats;
-    int fd = Connect(host, port);
-    if (fd < 0) {
-        std::cerr << "Client " << client_id << " failed to connect\n";
+    ClientStats RunClient(const std::string& host, int port, int requests_per_client, int client_id) {
+        ClientStats stats;
+        int fd = Connect(host, port);
+        if (fd < 0) {
+            std::cerr << "Client " << client_id << " failed to connect\n";
+            return stats;
+        }
+
+        std::mt19937 rng(client_id);
+        std::uniform_real_distribution<double> price_dist(29000.0, 31000.0);
+        std::uniform_int_distribution<int> action_dist(0, 4);
+
+        const int64_t now_sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+
+        for (int i = 0; i < requests_per_client; ++i) {
+            if (action_dist(rng) < 4) {
+                std::ostringstream oss;
+                oss << R"({"timestamp":)" << now_sec << R"(,"symbol":"BTCUSD","price":)" << price_dist(rng)
+                    << R"(,"volume":1.0})";
+                SendAndRecv(fd, oss.str());
+                stats.push_count++;
+            } else {
+                auto start = high_resolution_clock::now();
+                SendAndRecv(fd, R"({"action":"query","symbol":"BTCUSD"})");
+                auto end = high_resolution_clock::now();
+                stats.query_latencies_us.push_back(duration_cast<duration<double, std::micro>>(end - start).count());
+                stats.query_count++;
+            }
+        }
+
+        close(fd);
         return stats;
     }
 
-    std::mt19937 rng(client_id);
-    std::uniform_real_distribution<double> price_dist(29000.0, 31000.0);
-    std::uniform_int_distribution<int> action_dist(0, 4);
-
-    const int64_t now_sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
-
-    for (int i = 0; i < requests_per_client; ++i) {
-        if (action_dist(rng) < 4) {
-            std::ostringstream oss;
-            oss << R"({"timestamp":)" << now_sec << R"(,"symbol":"BTCUSD","price":)" << price_dist(rng)
-                << R"(,"volume":1.0})";
-            SendAndRecv(fd, oss.str());
-            stats.push_count++;
-        } else {
-            auto start = high_resolution_clock::now();
-            SendAndRecv(fd, R"({"action":"query","symbol":"BTCUSD"})");
-            auto end = high_resolution_clock::now();
-            stats.query_latencies_us.push_back(duration_cast<duration<double, std::micro>>(end - start).count());
-            stats.query_count++;
-        }
+    double Percentile(std::vector<double>& sorted_data, double p) {
+        if (sorted_data.empty()) return 0.0;
+        size_t idx = static_cast<size_t>(p / 100.0 * static_cast<double>(sorted_data.size()));
+        idx = std::min(idx, sorted_data.size() - 1);
+        return sorted_data[idx];
     }
-
-    close(fd);
-    return stats;
-}
-
-double Percentile(std::vector<double>& sorted_data, double p) {
-    if (sorted_data.empty()) return 0.0;
-    size_t idx = static_cast<size_t>(p / 100.0 * static_cast<double>(sorted_data.size()));
-    idx = std::min(idx, sorted_data.size() - 1);
-    return sorted_data[idx];
-}
 
 }
 
