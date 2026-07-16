@@ -19,6 +19,9 @@ target_include_directories(metrics_core INTERFACE include)
 add_executable(metrics_server src/main.cpp src/tcp_server.cpp)
 target_link_libraries(metrics_server PRIVATE metrics_core pthread)
 
+add_executable(load_test_client tools/load_test_client.cpp)
+target_link_libraries(load_test_client PRIVATE pthread)
+
 option(BUILD_TESTS "Build unit tests" ON)
 if(BUILD_TESTS)
     include(FetchContent)
