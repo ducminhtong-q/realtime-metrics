@@ -1,6 +1,8 @@
 #pragma once
 
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -13,6 +15,7 @@ namespace metrics {
                                       int64_t snapshot_timestamp_ms) {
         std::ofstream file(filepath, std::ios::app);
         if (!file.is_open()) {
+            std::cerr << "[persistence] FAILED to open " << filepath << "\n";
             return;
         }
 
@@ -27,6 +30,7 @@ namespace metrics {
             j["sample_count"] = m.sample_count;
             file << j.dump() << "\n";
         }
+        std::cerr << "[persistence] snapshot written to: " << std::filesystem::absolute(filepath) << "\n";
     }
 
 }
