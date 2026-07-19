@@ -16,6 +16,7 @@ TCP server nhận luồng tick data (price/volume) theo real-time, tính các ch
 - **Thread-per-connection** cho networking, đồng bộ hóa qua 1 `std::mutex` duy nhất bảo vệ toàn bộ symbol store.
 - **NDJSON qua TCP thô** (không dùng HTTP).
 - **RAII** (`std::lock_guard`, `std::ofstream`) — không quản lý tài nguyên thủ công.
+- **Graceful shutdown** qua signal handler (SIGINT/SIGTERM) + `std::atomic<bool>` — server dừng, cần thiết để chạy qua `valgrind`
 
 **Nếu có thêm thời gian để nghiên cứu/nâng cấp, hướng đi tiếp theo:**
 - Chuyển từ thread-per-connection sang **epoll** (event-driven I/O) nếu cần hàng nghìn connection đồng thời
@@ -111,6 +112,21 @@ Load test:
 ```bash
 ./metrics_server 9000 &
 ./load_test_client 127.0.0.1 9000 50 1000
+```
+
+**CPU/RAM dưới tải**:
+```bash
+mkdir -p ../build_valgrind && cd ../build_valgrind
+cmake -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Debug .. && make -j$(nproc)
+ 
+valgrind --tool=memcheck --leak-check=full --show-leak-kinds=definite,indirect \
+    ./metrics_server 9000 &
+VPID=$!
+sleep 2 && ./load_test_client 127.0.0.1 9000 5 100
+kill -INT $VPID
+ 
+/usr/bin/time -v ./metrics_server 9000 &
+sleep 1 && ./load_test_client 127.0.0.1 9000 50 3000 && kill -INT $(pgrep -x metrics_server)
 ```
 
 ## Project Structure
