@@ -1,4 +1,6 @@
 #include <chrono>
+#include <csignal>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
@@ -6,7 +8,25 @@
 #include "metrics/persistence.hpp"
 #include "metrics/tcp_server.hpp"
 
+namespace {
+    void HandleSignal(int /*signum*/)
+    {
+        metrics::RequestShutdown();
+    }
+    void InstallSignalHandler()
+    {
+        struct sigaction sa;
+        std::memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = HandleSignal;
+        sa.sa_flags = 0;
+        sigaction(SIGINT, &sa, nullptr);
+        sigaction(SIGTERM, &sa, nullptr);
+    }
+}
+
 int main(int argc, char** argv) {
+    InstallSignalHandler();
+
     int port = 9000;
     if (argc > 1) {
         port = std::atoi(argv[1]);

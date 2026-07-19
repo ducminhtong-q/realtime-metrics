@@ -4,5 +4,5 @@
 
 namespace metrics {
     void RunServer(int port, MetricEngine& engine);
-
+    void RequestShutdown();
 }

@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <cerrno>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -15,6 +17,7 @@
 namespace metrics {
 
     namespace {
+        std::atomic<bool> g_shutdown_requested{false};
 
         void HandleClient(int client_fd, MetricEngine& engine) {
             std::string buffer;
@@ -93,13 +96,22 @@ namespace metrics {
 
         std::cout << "Server listening on port " << port << "\n";
 
-        while (true) {
+        while (!g_shutdown_requested.load()) {
             int client_fd = accept(server_fd, nullptr, nullptr);
             if (client_fd < 0) {
+                if (errno == EINTR) {
+                    break;
+                }
                 continue;
             }
             std::thread(HandleClient, client_fd, std::ref(engine)).detach();
         }
+
+        close(server_fd);
+        std::cout << "Server shut down cleanly\n";
+    }
+    void RequestShutdown() {
+        g_shutdown_requested.store(true);
     }
 
 }
